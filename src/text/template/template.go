@@ -5,9 +5,9 @@
 package template
 
 import (
+	"github.com/sonarsource/template/parse"
 	"reflect"
 	"sync"
-	"text/template/parse"
 )
 
 // common holds the information shared by related templates.
