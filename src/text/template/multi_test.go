@@ -8,10 +8,10 @@ package template
 
 import (
 	"fmt"
+	"github.com/sonarsource/go/src/text/template/parse"
 	"os"
 	"strings"
 	"testing"
-	"text/template/parse"
 )
 
 const (

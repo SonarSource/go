@@ -6,7 +6,7 @@ package fmtsort_test
 
 import (
 	"fmt"
-	"internal/fmtsort"
+	"github.com/sonarsource/go/src/fmtsort"
 	"math"
 	"reflect"
 	"sort"

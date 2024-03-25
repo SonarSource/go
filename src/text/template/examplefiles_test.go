@@ -5,11 +5,11 @@
 package template_test
 
 import (
+	"github.com/sonarsource/go/src/text/template"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"text/template"
 )
 
 // templateFile defines the contents of a template to be stored in a file, for testing.

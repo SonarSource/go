@@ -7,12 +7,12 @@ package template
 import (
 	"errors"
 	"fmt"
-	"internal/fmtsort"
+	"github.com/sonarsource/go/src/fmtsort"
+	"github.com/sonarsource/go/src/text/template/parse"
 	"io"
 	"reflect"
 	"runtime"
 	"strings"
-	"text/template/parse"
 )
 
 // maxExecDepth specifies the maximum stack depth of templates within

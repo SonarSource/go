@@ -5,10 +5,10 @@
 package template_test
 
 import (
+	"github.com/sonarsource/go/src/text/template"
 	"log"
 	"os"
 	"strings"
-	"text/template"
 )
 
 func ExampleTemplate() {
