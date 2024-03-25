@@ -331,7 +331,9 @@ func testParse(doCopy bool, t *testing.T) {
 	textFormat = "%q"
 	defer func() { textFormat = "%s" }()
 	for _, test := range parseTests {
-		tmpl, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree), builtins)
+		tree := New(test.name)
+		tree.Mode = 0
+		tmpl, err := tree.Parse(test.input, "", "", make(map[string]*Tree), builtins)
 		switch {
 		case err == nil && !test.ok:
 			t.Errorf("%q: expected error; got none", test.name)
