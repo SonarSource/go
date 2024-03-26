@@ -101,7 +101,7 @@ func TestNumberParse(t *testing.T) {
 				typ = itemComplex
 			}
 		}
-		n, err := tree.newNumber(0, test.text, typ)
+		n, err := tree.newNumber(Location{0, len(test.text)}, test.text, typ)
 		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
 		if ok && err != nil {
 			t.Errorf("unexpected error for %q: %s", test.text, err)
