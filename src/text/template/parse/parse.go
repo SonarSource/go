@@ -42,7 +42,7 @@ const (
 	SkipFuncCheck                  // do not check that functions are defined
 )
 
-// Copy returns a copy of the Tree. Any parsing state is discarded.
+// Copy returns a copy of the [Tree]. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
 	if t == nil {
 		return nil
@@ -55,7 +55,7 @@ func (t *Tree) Copy() *Tree {
 	}
 }
 
-// Parse returns a map from template name to parse.Tree, created by parsing the
+// Parse returns a map from template name to [Tree], created by parsing the
 // templates described in the argument string. The top-level template will be
 // given the specified name. If an error is encountered, parsing stops and an
 // empty map is returned with the error.
@@ -535,7 +535,7 @@ func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
 	}
 }
 
-func (t *Tree) parseControl(allowElseIf bool, context string) (loc Location, line int, pipe *PipeNode, list, elseList *ListNode) {
+func (t *Tree) parseControl(context string) (loc Location, line int, pipe *PipeNode, list, elseList *ListNode) {
 	defer t.popVars(len(t.vars))
 	pipe = t.pipeline(context, itemRightDelim)
 	if context == "range" {
@@ -549,27 +549,33 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (loc Location, lin
 	switch next.Type() {
 	case nodeEnd: //done
 	case nodeElse:
-		if allowElseIf {
-			// Special case for "else if". If the "else" is followed immediately by an "if",
-			// the elseControl will have left the "if" token pending. Treat
-			//	{{if a}}_{{else if b}}_{{end}}
-			// as
-			//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}.
-			// To do this, parse the if as usual and stop at it {{end}}; the subsequent{{end}}
-			// is assumed. This technique works even for long if-else-if chains.
-			// TODO: Should we allow else-if in with and range?
-			if t.peek().typ == itemIf {
-				ifItem := t.next() // Consume the "if" token.
-				elseList = t.newList(ifItem.pos)
-				elseList.length = next.Length()
-				elseList.append(t.ifControl())
-				// Do not consume the next item - only one {{end}} required.
-				break
+		// Special case for "else if" and "else with".
+		// If the "else" is followed immediately by an "if" or "with",
+		// the elseControl will have left the "if" or "with" token pending. Treat
+		//	{{if a}}_{{else if b}}_{{end}}
+		//  {{with a}}_{{else with b}}_{{end}}
+		// as
+		//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}
+		//  {{with a}}_{{else}}{{with b}}_{{end}}{{end}}.
+		// To do this, parse the "if" or "with" as usual and stop at it {{end}};
+		// the subsequent{{end}} is assumed. This technique works even for long if-else-if chains.
+		if context == "if" && t.peek().typ == itemIf {
+			ifItem := t.next() // Consume the "if" token.
+			elseList = t.newList(ifItem.pos)
+			elseList.length = next.Length()
+			elseList.append(t.ifControl())
+			// Do not consume the next item - only one {{end}} required.
+			break
+		} else if context == "with" && t.peek().typ == itemWith {
+			ifItem := t.next()
+			elseList = t.newList(ifItem.pos)
+			elseList.length = next.Length()
+			elseList.append(t.withControl())
+		} else {
+			elseList, next = t.itemList()
+			if next.Type() != nodeEnd {
+				t.errorf("expected end; found %s", next)
 			}
-		}
-		elseList, next = t.itemList()
-		if next.Type() != nodeEnd {
-			t.errorf("expected end; found %s", next)
 		}
 	}
 	// estimate the length of the node: at this point `next` should be the `end` node, so the total length of the control node
@@ -585,7 +591,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (loc Location, lin
 //
 // If keyword is past.
 func (t *Tree) ifControl() Node {
-	return t.newIf(t.parseControl(true, "if"))
+	return t.newIf(t.parseControl("if"))
 }
 
 // Range:
@@ -595,7 +601,7 @@ func (t *Tree) ifControl() Node {
 //
 // Range keyword is past.
 func (t *Tree) rangeControl() Node {
-	r := t.newRange(t.parseControl(false, "range"))
+	r := t.newRange(t.parseControl("range"))
 	return r
 }
 
@@ -606,7 +612,7 @@ func (t *Tree) rangeControl() Node {
 //
 // If keyword is past.
 func (t *Tree) withControl() Node {
-	return t.newWith(t.parseControl(false, "with"))
+	return t.newWith(t.parseControl("with"))
 }
 
 // End:
@@ -625,10 +631,11 @@ func (t *Tree) endControl(loc Location) Node {
 //
 // Else keyword is past.
 func (t *Tree) elseControl() Node {
-	// Special case for "else if".
 	peek := t.peekNonSpace()
-	if peek.typ == itemIf {
-		// We see "{{else if ... " but in effect rewrite it to {{else}}{{if ... ".
+	if peek.typ == itemIf || peek.typ == itemWith {
+		// The "{{else if ... " and "{{else with ..." will be
+		// treated as "{{else}}{{if ..." and "{{else}}{{with ...".
+		// So return the else node here.
 		return t.newElse(peek.getLocation(), peek.line)
 	}
 	token := t.expect(itemRightDelim, "else")

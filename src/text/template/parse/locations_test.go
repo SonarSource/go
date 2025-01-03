@@ -34,6 +34,7 @@ func Test_simple_value(t *testing.T) {
 	//          ^^^^^^^^^^^^^^             └- Field (3; 14)
 	root := parseRoot(t, code)
 
+	// TODO SONARIAC-1530: ActionNode shouldn't have a narrower text range than its children
 	assert.Equal(t, Location{0, 20}, root.Location)
 	actionNode := root.Nodes[0].(*ActionNode)
 	assert.Equal(t, Location{3, 7}, actionNode.Location)
@@ -118,8 +119,8 @@ func Test_function(t *testing.T) {
 	//          ^^^          └- Action (3; 3)
 	//          ^^^^^^^^^       └- Pipe (3; 9)
 	//          ^^^^^^^^^          └- Command (3; 9)
-	//          ^^^      		      |- Identifier (3; 3)
-	//              ^^^^^		      └- String (7; 5)
+	//          ^^^                   |- Identifier (3; 3)
+	//              ^^^^^             └- String (7; 5)
 
 	trees, err := Parse("test", code, "{{", "}}", map[string]any{"foo": strings.ToUpper})
 	assert.NoError(t, err)
@@ -143,4 +144,32 @@ func parseRoot(t *testing.T, code string) *ListNode {
 
 	assert.NoError(t, err)
 	return trees["test"].Root
+}
+
+func Test_with_statement(t *testing.T) {
+	code := `{{ with .foo }}{{ "foo" }}{{ else with .bar }}{{ "bar" }}{{ end }}`
+	//               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                          With (8; 30)
+	//               ^^^^                                                    |- Pipe (8; 4)
+	//                      ^^^^^^^^^^^^^^^^^^^^^^^                          |- List (13; 5)
+	//                                              ^^^^                     └- ElseList (39; 4)
+	//                                              ^^^^^^^^^^^^^^^^^^^^^^^^    └- With (39; 24)
+	//                                              ^^^^                           └- Pipe (39; 4)
+
+	trees, err := Parse("test", code, "{{", "}}")
+	assert.NoError(t, err)
+	root := trees["test"].Root
+
+	assert.Equal(t, Location{0, 66}, root.Location)
+	withNode := root.Nodes[0].(*WithNode)
+	assert.Equal(t, Location{8, 30}, withNode.Location)
+	assert.Equal(t, Location{8, 4}, withNode.Pipe.Location)
+	assert.Equal(t, Location{15, 23}, withNode.List.Location)
+	assert.Len(t, withNode.List.Nodes, 1)
+	assert.Equal(t, Location{34, 4}, withNode.ElseList.Location)
+	assert.Len(t, withNode.ElseList.Nodes, 1)
+	elseWithNode := withNode.ElseList.Nodes[0].(*WithNode)
+	assert.Equal(t, Location{39, 24}, elseWithNode.Location)
+	alternativeWithNode := elseWithNode.Pipe
+	assert.Equal(t, Location{39, 4}, alternativeWithNode.Location)
+	assert.Nil(t, elseWithNode.ElseList)
 }
