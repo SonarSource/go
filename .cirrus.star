@@ -28,13 +28,11 @@ def main(ctx):
     return conf
 
 
+
 def build_task():
     return {
         "build_task": {
-            "env": {
-                "CIRRUS_CLONE_DEPTH": 10,
-                "GO_VERSION": "1.21.8",
-            },
+            "env": common_env(),
             "eks_container": custom_image_container_builder(cpu=1, memory="1G"),
             "modules_cache": {
                 "fingerprint_script": "cat src/go.sum",
@@ -65,7 +63,7 @@ def sca_scan_task():
     "sca_scan_task": {
       # "only_if": is_main_branch(),
       "depends_on": "build",
-      "env": whitesource_env(),
+      "env": whitesource_api_env() | common_env(),
       "eks_container": custom_image_container_builder(cpu=1, memory="1G"),
       "whitesource_script": whitesource_script(),
       "allow_failures": "true",
@@ -77,10 +75,10 @@ def sca_scan_task():
     }
   }
 
-def whitesource_env():
-  env = {
-            "CIRRUS_CLONE_DEPTH": 10,
-            "GO_VERSION": "1.21.8",
-  }
-  return whitesource_api_env() | env
 
+
+def common_env():
+  return {
+    "CIRRUS_CLONE_DEPTH": 10,
+    "GO_VERSION": "1.21.8",
+  }
