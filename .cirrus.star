@@ -61,7 +61,7 @@ def whitesource_script():
 def sca_scan_task():
   return {
     "sca_scan_task": {
-      # "only_if": is_main_branch(),
+      "only_if": is_main_branch(),
       "depends_on": "build",
       "env": whitesource_api_env() | common_env(),
       "eks_container": custom_image_container_builder(cpu=1, memory="1G"),
