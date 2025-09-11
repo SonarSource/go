@@ -80,5 +80,5 @@ def sca_scan_task():
 def common_env():
   return {
     "CIRRUS_CLONE_DEPTH": 10,
-    "GO_VERSION": "1.21.8",
+    "GO_VERSION": "1.25.1",
   }
