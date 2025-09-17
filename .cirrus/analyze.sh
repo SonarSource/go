@@ -1,0 +1,13 @@
+sonar-scanner \
+    -Dsonar.host.url=${SONAR_HOST_URL} \
+    -Dsonar.token=${SONAR_TOKEN} \
+    -Dsonar.projectKey="SonarSource_go" \
+    -Dsonar.organization="sonarsource" \
+    -Dsonar.analysis.buildNumber="$BUILD_NUMBER" \
+    -Dsonar.analysis.repository="$GITHUB_REPO" \
+    -Dsonar.cpd.exclusions=** \
+    -Dsonar.go.duration.statistics=true \
+    -Dsonar.go.coverage.reportPaths="coverage.out" \
+    -Dsonar.go.tests.reportPaths="test-report.out" \
+    -Dsonar.test.inclusions="**/*_test.go" \
+    --debug

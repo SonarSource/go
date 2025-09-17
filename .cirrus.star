@@ -6,13 +6,13 @@ load(
 
 load(
     "github.com/SonarSource/cirrus-modules/cloud-native/conditions.star@analysis/master",
-    "is_main_branch"
+    "is_main_branch",
+    "is_branch_qa_eligible"
 )
 
 load(
     "github.com/SonarSource/cirrus-modules/cloud-native/env.star@analysis/master",
-    "cirrus_env",
-    "whitesource_api_env"
+    "cirrus_env"
 )
 load(
     "github.com/SonarSource/cirrus-modules/cloud-native/platform.star@analysis/master",
@@ -24,15 +24,22 @@ def main(ctx):
     conf = {}
     merge_dict(conf, load_features(ctx))
     merge_dict(conf, build_task())
-    merge_dict(conf, sca_scan_task())
+    merge_dict(conf, shadow_scan_sqc_eu_task())
+    merge_dict(conf, shadow_scan_sqc_us_task())
     return conf
 
-
+def build_env():
+    env = common_env()
+    env |= {
+       "SONAR_TOKEN": "VAULT[development/kv/data/next data.token]",
+       "SONAR_HOST_URL": "https://next.sonarqube.com/sonarqube"
+    }
+    return env
 
 def build_task():
     return {
         "build_task": {
-            "env": common_env(),
+            "env": build_env(),
             "eks_container": custom_image_container_builder(cpu=1, memory="1G"),
             "modules_cache": {
                 "fingerprint_script": "cat src/go.sum",
@@ -41,44 +48,68 @@ def build_task():
             "build_script": [
                 "cd src",
                 "go build -v ./...",
-                "go test -v ./..."
+                "go test -v ./... -coverprofile=coverage.out -json > test-report.out",
+                "../.cirrus/analyze.sh"
             ]
         }
     }
 
 #
-# WhiteSource scan
+# Shadow Scans
 #
 
-def whitesource_script():
-  return [
-    "source cirrus-env QA",
-    "export PROJECT_VERSION=$(cat VERSION | grep 'go[\\d.]*' | sed 's/go//').${BUILD_NUMBER:-0}",
-    "source ws_scan.sh"
-  ]
+def is_run_shadow_scan():
+    return "($CIRRUS_CRON == $CRON_NIGHTLY_JOB_NAME && $CIRRUS_BRANCH == \"master\") || $CIRRUS_PR_LABELS =~ \".*shadow_scan.*\""
 
 
-def sca_scan_task():
-  return {
-    "sca_scan_task": {
-      "only_if": is_main_branch(),
-      "depends_on": "build",
-      "env": whitesource_api_env() | common_env(),
-      "eks_container": custom_image_container_builder(cpu=1, memory="1G"),
-      "whitesource_script": whitesource_script(),
-      "allow_failures": "true",
-      "always": {
-        "ws_artifacts": {
-          "path": "whitesource/**/*"
-        }
-      },
+def shadow_scan_task_template(env):
+    return {
+        "only_if": "({}) && ({})".format(is_branch_qa_eligible(), is_run_shadow_scan()),
+        "depends_on": "build",
+        "env": env,
+        "eks_container": custom_image_container_builder(cpu=1, memory="1G"),
+        "modules_cache": {
+            "fingerprint_script": "cat src/go.sum",
+            "folder": "/home/sonarsource/go/pkg/mod"
+        },
+        "build_script": [
+            "cd src",
+            "go build -v ./...",
+            "go test -v ./... -coverprofile=coverage.out -json > test-report.out",
+            "../.cirrus/analyze.sh"
+        ]
     }
-  }
 
+def shadow_scan_sqc_eu_env():
+    env = common_env()
+    env |= {
+       "SONAR_TOKEN": "VAULT[development/kv/data/sonarcloud data.token]",
+       "SONAR_HOST_URL": "https://sonarcloud.io"
+    }
+    return env
+
+def shadow_scan_sqc_eu_task():
+    return {
+        "shadow_scan_sqc_eu_task": shadow_scan_task_template(shadow_scan_sqc_eu_env())
+    }
+
+def shadow_scan_sqc_us_env():
+    env = common_env()
+    env |= {
+       "SONAR_TOKEN": "VAULT[development/kv/data/sonarqube-us data.token]",
+       "SONAR_HOST_URL": "https://sonarqube.us"
+    }
+    return env
+
+def shadow_scan_sqc_us_task():
+    return {
+        "shadow_scan_sqc_us_task": shadow_scan_task_template(shadow_scan_sqc_us_env())
+    }
 
 
 def common_env():
   return {
     "CIRRUS_CLONE_DEPTH": 10,
     "GO_VERSION": "1.25.1",
+    "CRON_NIGHTLY_JOB_NAME": "nightly",
   }
