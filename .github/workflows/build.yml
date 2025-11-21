@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: sonar-xs
+    runs-on: github-ubuntu-latest-s
     name: Build and Analyze (Next)
     permissions:
       id-token: write
@@ -86,7 +86,7 @@ jobs:
             --debug
 
   shadow_scan_sqc_eu:
-    runs-on: sonar-xs
+    runs-on: github-ubuntu-latest-s
     name: Shadow Scan (SonarCloud EU)
     needs: build
     if: (github.event_name == 'schedule' && github.ref == 'refs/heads/master') || contains(github.event.pull_request.labels.*.name, 'shadow_scan')
@@ -121,7 +121,7 @@ jobs:
             --debug
 
   shadow_scan_sqc_us:
-    runs-on: sonar-xs
+    runs-on: github-ubuntu-latest-s
     name: Shadow Scan (SonarCloud US)
     needs: build
     if: (github.event_name == 'schedule' && github.ref == 'refs/heads/master') || contains(github.event.pull_request.labels.*.name, 'shadow_scan')
