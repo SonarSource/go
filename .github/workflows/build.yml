@@ -121,7 +121,7 @@ jobs:
       - *cache-go-modules
       - *build-and-test
       - name: SonarQube scan
-        uses: sonarsource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -164,7 +164,7 @@ jobs:
       - *build-and-test
 
       - name: SonarQube scan
-        uses: sonarsource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarqube.us
