@@ -9,7 +9,7 @@ A **heavily trimmed fork of [golang/go](https://github.com/golang/go)** (upstrea
 - `src/text/template` (+ `src/text/template/parse`) — the Go text template engine
 - `src/fmtsort` — upstream's `internal/fmtsort`, a dependency of `text/template`. It was moved out of `internal/` because packages under an `internal/` path cannot be referenced from another module.
 
-It is published as the Go module `github.com/sonarsource/go/src` and consumed by **sonar-iac**'s `sonar-helm-for-iac` component (`/Users/marcin.stachniuk/code/1/sonar-iac-enterprise/sonar-helm-for-iac`) to parse and evaluate Helm charts. Helm templates *are* Go text templates (plus [Sprig](http://github.com/Masterminds/sprig) helper functions), so sonar-iac reuses this engine rather than reimplementing it.
+It is published as the Go module `github.com/sonarsource/go/src` and consumed by **sonar-iac**'s `sonar-helm-for-iac` component to parse and evaluate Helm charts. Helm templates *are* Go text templates (plus [Sprig](http://github.com/Masterminds/sprig) helper functions), so sonar-iac reuses this engine rather than reimplementing it.
 
 The pipeline: `sonar-helm-for-iac` (Go binary, stdin/stdout) evaluates Helm templates using this fork, converts the resulting `parse` AST into protobuf (`src/converters/tree_converter.go`), and streams it to the Java analyzer in sonar-iac.
 
@@ -34,7 +34,7 @@ go test ./... -coverprofile=coverage.out   # what CI collects
 gofmt -l .                                 # must print nothing
 ```
 
-The Go toolchain version is pinned in `mise.toml` (currently 1.25.1) and must match the `go` directive in `src/go.mod`.
+The Go toolchain version is pinned in `mise.toml` and must match the `go` directive in `src/go.mod`.
 
 ## Why the fork exists: the two divergences from upstream
 
