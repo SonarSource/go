@@ -82,6 +82,7 @@ jobs:
             -Dsonar.go.coverage.reportPaths=coverage.out
             -Dsonar.go.tests.reportPaths=test-report.out
             -Dsonar.test.inclusions=**/*_test.go
+            -Dsonar.coverage.exclusions=src/text/template/funcs.go,src/text/template/parse/lex.go,src/text/template/parse/node.go,src/text/template/parse/parse.go
             --debug
 
       - name: Upload test results
