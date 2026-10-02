@@ -248,10 +248,10 @@ func (l *lexer) nextItem() item {
 // lex creates a new scanner for the input string.
 func lex(name, input, left, right string) *lexer {
 	if left == "" {
-		left = leftDelim
+		left = defaultLeftDelim
 	}
 	if right == "" {
-		right = rightDelim
+		right = defaultRightDelim
 	}
 	l := &lexer{
 		name:         name,
@@ -268,10 +268,10 @@ func lex(name, input, left, right string) *lexer {
 // state functions
 
 const (
-	leftDelim    = "{{"
-	rightDelim   = "}}"
-	leftComment  = "/*"
-	rightComment = "*/"
+	defaultLeftDelim  = "{{"
+	defaultRightDelim = "}}"
+	leftComment       = "/*"
+	rightComment      = "*/"
 )
 
 // lexText scans until an opening action delimiter, "{{".
