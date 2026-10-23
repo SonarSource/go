@@ -79,8 +79,8 @@ jobs:
             -Dsonar.analysis.repository=${{ github.repository }}
             -Dsonar.cpd.exclusions=**
             -Dsonar.go.duration.statistics=true
-            -Dsonar.go.coverage.reportPaths=coverage.out
-            -Dsonar.go.tests.reportPaths=test-report.out
+            -Dsonar.go.coverage.reportPaths=src/coverage.out
+            -Dsonar.go.tests.reportPaths=src/test-report.out
             -Dsonar.test.inclusions=**/*_test.go
             -Dsonar.coverage.exclusions=src/text/template/funcs.go,src/text/template/parse/lex.go,src/text/template/parse/node.go,src/text/template/parse/parse.go
             --debug
@@ -136,8 +136,8 @@ jobs:
             -Dsonar.analysis.repository=${{ github.repository }}
             -Dsonar.cpd.exclusions=**
             -Dsonar.go.duration.statistics=true
-            -Dsonar.go.coverage.reportPaths=coverage.out
-            -Dsonar.go.tests.reportPaths=test-report.out
+            -Dsonar.go.coverage.reportPaths=src/coverage.out
+            -Dsonar.go.tests.reportPaths=src/test-report.out
             -Dsonar.test.inclusions=**/*_test.go
             --debug
 
@@ -179,8 +179,8 @@ jobs:
             -Dsonar.analysis.repository=${{ github.repository }}
             -Dsonar.cpd.exclusions=**
             -Dsonar.go.duration.statistics=true
-            -Dsonar.go.coverage.reportPaths=coverage.out
-            -Dsonar.go.tests.reportPaths=test-report.out
+            -Dsonar.go.coverage.reportPaths=src/coverage.out
+            -Dsonar.go.tests.reportPaths=src/test-report.out
             -Dsonar.test.inclusions=**/*_test.go
             --debug
 
