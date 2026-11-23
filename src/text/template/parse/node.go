@@ -598,8 +598,8 @@ type BoolNode struct {
 	True bool // The value of the boolean constant.
 }
 
-func (t *Tree) newBool(loc Location, true bool) *BoolNode {
-	return &BoolNode{tr: t, NodeType: NodeBool, Location: loc, True: true}
+func (t *Tree) newBool(loc Location, isTrue bool) *BoolNode {
+	return &BoolNode{tr: t, NodeType: NodeBool, Location: loc, True: isTrue}
 }
 
 func (b *BoolNode) String() string {
@@ -643,39 +643,71 @@ func (t *Tree) newNumber(loc Location, text string, typ itemType) (*NumberNode, 
 	n := &NumberNode{tr: t, NodeType: NodeNumber, Location: loc, Text: text}
 	switch typ {
 	case itemCharConstant:
-		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
-		if err != nil {
-			return nil, err
-		}
-		if tail != "'" {
-			return nil, fmt.Errorf("malformed character constant: %s", text)
-		}
-		n.Int64 = int64(rune)
-		n.IsInt = true
-		n.Uint64 = uint64(rune)
-		n.IsUint = true
-		n.Float64 = float64(rune) // odd but those are the rules.
-		n.IsFloat = true
-		return n, nil
+		return newCharNumber(n, text)
 	case itemComplex:
-		// fmt.Sscan can parse the pair, so let it do the work.
-		if _, err := fmt.Sscan(text, &n.Complex128); err != nil {
-			return nil, err
-		}
-		n.IsComplex = true
-		n.simplifyComplex()
+		return newComplexNumber(n, text)
+	}
+	if n.trySetImaginary(text) {
 		return n, nil
 	}
-	// Imaginary constants can only be complex unless they are zero.
-	if len(text) > 0 && text[len(text)-1] == 'i' {
-		f, err := strconv.ParseFloat(text[:len(text)-1], 64)
-		if err == nil {
-			n.IsComplex = true
-			n.Complex128 = complex(0, f)
-			n.simplifyComplex()
-			return n, nil
-		}
+	if err := n.setNumericValue(text); err != nil {
+		return nil, err
 	}
+	if !n.IsInt && !n.IsUint && !n.IsFloat {
+		return nil, fmt.Errorf("illegal number syntax: %q", text)
+	}
+	return n, nil
+}
+
+// newCharNumber parses a character constant (e.g. 'a') into n.
+func newCharNumber(n *NumberNode, text string) (*NumberNode, error) {
+	r, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+	if err != nil {
+		return nil, err
+	}
+	if tail != "'" {
+		return nil, fmt.Errorf("malformed character constant: %s", text)
+	}
+	n.Int64 = int64(r)
+	n.IsInt = true
+	n.Uint64 = uint64(r)
+	n.IsUint = true
+	n.Float64 = float64(r) // odd but those are the rules.
+	n.IsFloat = true
+	return n, nil
+}
+
+// newComplexNumber parses a complex constant into n.
+func newComplexNumber(n *NumberNode, text string) (*NumberNode, error) {
+	// fmt.Sscan can parse the pair, so let it do the work.
+	if _, err := fmt.Sscan(text, &n.Complex128); err != nil {
+		return nil, err
+	}
+	n.IsComplex = true
+	n.simplifyComplex()
+	return n, nil
+}
+
+// trySetImaginary sets n's complex fields if text is a purely imaginary
+// constant (ending in "i"). It reports whether it succeeded.
+// Imaginary constants can only be complex unless they are zero.
+func (n *NumberNode) trySetImaginary(text string) bool {
+	if len(text) == 0 || text[len(text)-1] != 'i' {
+		return false
+	}
+	f, err := strconv.ParseFloat(text[:len(text)-1], 64)
+	if err != nil {
+		return false
+	}
+	n.IsComplex = true
+	n.Complex128 = complex(0, f)
+	n.simplifyComplex()
+	return true
+}
+
+// setNumericValue parses text as an integer and/or floating-point value,
+// setting the appropriate fields on n.
+func (n *NumberNode) setNumericValue(text string) error {
 	// Do integer test first so we get 0x123 etc.
 	u, err := strconv.ParseUint(text, 0, 64) // will fail for -0; fixed below.
 	if err == nil {
@@ -692,37 +724,43 @@ func (t *Tree) newNumber(loc Location, text string, typ itemType) (*NumberNode, 
 		}
 	}
 	// If an integer extraction succeeded, promote the float.
-	if n.IsInt {
+	switch {
+	case n.IsInt:
 		n.IsFloat = true
 		n.Float64 = float64(n.Int64)
-	} else if n.IsUint {
+	case n.IsUint:
 		n.IsFloat = true
 		n.Float64 = float64(n.Uint64)
-	} else {
-		f, err := strconv.ParseFloat(text, 64)
-		if err == nil {
-			// If we parsed it as a float but it looks like an integer,
-			// it's a huge number too large to fit in an int. Reject it.
-			if !strings.ContainsAny(text, ".eEpP") {
-				return nil, fmt.Errorf("integer overflow: %q", text)
-			}
-			n.IsFloat = true
-			n.Float64 = f
-			// If a floating-point extraction succeeded, extract the int if needed.
-			if !n.IsInt && float64(int64(f)) == f {
-				n.IsInt = true
-				n.Int64 = int64(f)
-			}
-			if !n.IsUint && float64(uint64(f)) == f {
-				n.IsUint = true
-				n.Uint64 = uint64(f)
-			}
-		}
+	default:
+		return n.setFloatValue(text)
 	}
-	if !n.IsInt && !n.IsUint && !n.IsFloat {
-		return nil, fmt.Errorf("illegal number syntax: %q", text)
+	return nil
+}
+
+// setFloatValue parses text as a floating-point value, setting n's float
+// field and, when possible, its integer/unsigned fields too.
+func (n *NumberNode) setFloatValue(text string) error {
+	f, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return nil
 	}
-	return n, nil
+	// If we parsed it as a float but it looks like an integer,
+	// it's a huge number too large to fit in an int. Reject it.
+	if !strings.ContainsAny(text, ".eEpP") {
+		return fmt.Errorf("integer overflow: %q", text)
+	}
+	n.IsFloat = true
+	n.Float64 = f
+	// If a floating-point extraction succeeded, extract the int if needed.
+	if !n.IsInt && float64(int64(f)) == f {
+		n.IsInt = true
+		n.Int64 = int64(f)
+	}
+	if !n.IsUint && float64(uint64(f)) == f {
+		n.IsUint = true
+		n.Uint64 = uint64(f)
+	}
+	return nil
 }
 
 // simplifyComplex pulls out any other types that are represented by the complex number.
